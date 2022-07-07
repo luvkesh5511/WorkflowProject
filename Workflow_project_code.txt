@@ -104,7 +104,7 @@ var intro = ui.Panel([
   }),
   ui.Label({
     value:'Click a location to see its time series of Air Pollutants and Precipitation.',
-    style: {'fontSize': '18px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
+    style: {'fontSize': '12px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
   })
 ]);
 inspectorPanel.add(intro);
