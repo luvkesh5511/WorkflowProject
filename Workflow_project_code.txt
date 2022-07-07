@@ -104,7 +104,7 @@ var intro = ui.Panel([
   }),
   ui.Label({
     value:'Click a location to see its time series of Air Pollutants and Precipitation.',
-    style: {'fontSize': '12px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
+    style: {'fontSize': '12px','text-align':'left','fontWeight': 'bold','color':'#145A32'},
   })
 ]);
 inspectorPanel.add(intro);
@@ -160,9 +160,7 @@ var generateChart2 = function (coords) {
 
   // Add a dot for the point clicked on.
   var point = ee.Geometry.Point(coords.lon, coords.lat);
- // var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
-  // Add the dot as the second layer, so it shows up on top of the composite.
- // mapPanel.layers().set(1, dot);
+
 
   // Make a chart from the time series.
   var COChart = ui.Chart.image.series(collection2, point, ee.Reducer.mean(), 500);
@@ -192,10 +190,7 @@ var generateChart3 = function (coords) {
 
   // Add a dot for the point clicked on.
   var point = ee.Geometry.Point(coords.lon, coords.lat);
-  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
-  // Add the dot as the second layer, so it shows up on top of the composite.
-//  mapPanel.layers().set(1, dot);
-
+  
   // Make a chart from the time series.
   var O3Chart = ui.Chart.image.series(collection3, point, ee.Reducer.mean(), 500);
 
@@ -224,10 +219,7 @@ var generateChart4 = function (coords) {
 
   // Add a dot for the point clicked on.
   var point = ee.Geometry.Point(coords.lon, coords.lat);
-  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
-  // Add the dot as the second layer, so it shows up on top of the composite.
-  //mapPanel.layers().set(1, dot);
-
+  
   // Make a chart from the time series.
   var NO2Chart = ui.Chart.image.series(collection4, point, ee.Reducer.mean(), 500);
 
@@ -256,10 +248,7 @@ var generateChart5 = function (coords) {
 
   // Add a dot for the point clicked on.
   var point = ee.Geometry.Point(coords.lon, coords.lat);
-  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
-  // Add the dot as the second layer, so it shows up on top of the composite.
-  //mapPanel.layers().set(1, dot);
-
+  
   // Make a chart from the time series.
   var AerosolChart = ui.Chart.image.series(collection5, point, ee.Reducer.mean(), 500);
 
@@ -521,7 +510,7 @@ mapPanel.onClick(generateChart6);
 mapPanel.onClick(generateChart7);
 
 var descr= ui.Label({
-  value:'Different Types Of Air Pollutants',
+  value:'Different Types Of Air Pollutants and Precipitation Rate',
   style:{'fontSize': '18px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
 })
 var descr1= ui.Label({
@@ -682,7 +671,7 @@ mapPanel.onClick(function(coords) {
  * Initialize the app
  */
 var inspectorHead = ui.Label({
-  value: 'Vales of Pollutants and Precipitation',
+  value: 'Valeus of Pollutants and Precipitation',
   style: {'fontSize': '14px','fontWeight': 'bold','color':'#145A32'}});
 
 // Replace the root with a SplitPanel that contains the inspector and map.
@@ -719,10 +708,3 @@ generateChart7({
 });
 
 Map.setOptions('Satellite')
-
-
-
-
-
-
-
