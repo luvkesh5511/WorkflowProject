@@ -1,0 +1,728 @@
+
+var startSliderDate = '2022-01-01';
+var endSliderDate = Date.now();
+
+/*
+ * Map layer configuration
+ */
+
+var collection1= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_SO2")
+  .select('SO2_column_number_density')
+  .filterDate(startSliderDate, endSliderDate);
+var collection2= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_CO")
+  .select('CO_column_number_density')
+  .filterDate(startSliderDate, endSliderDate);
+var collection3= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_O3")
+  .select('O3_column_number_density')
+  .filterDate(startSliderDate, endSliderDate);
+var collection4= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_NO2")
+  .select('tropospheric_NO2_column_number_density')
+  .filterDate(startSliderDate, endSliderDate);
+var collection5= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_AER_AI")
+  .select('absorbing_aerosol_index')
+  .filterDate(startSliderDate, endSliderDate);
+var collection6= ee.ImageCollection("COPERNICUS/S5P/NRTI/L3_HCHO")
+  .select('tropospheric_HCHO_column_number_density')
+  .filterDate(startSliderDate, endSliderDate);
+var collection7= ee.ImageCollection("NASA/GPM_L3/IMERG_V06")
+  .select('precipitationCal')
+  .filterDate('2022-05-01', endSliderDate);
+
+
+var vis = [
+    {min:0, max:0.0005, palette:'violet,indigo,blue,green,yellow,orange,red'},//SO2
+    {min:0, max:0.05, palette:'violet,indigo,blue,green,yellow,orange,red'},//CO
+    {min:0, max:0.15, palette:'violet,indigo,blue,green,yellow,orange,red'},//O3
+    {min:0, max:0.0002, palette:'violet,indigo,blue,green,yellow,orange,red'},//NO2
+    {min:0, max:2.0, palette:'violet,indigo,blue,green,yellow,orange,red'},//AEROSOL
+    {min:0, max:0.0003, palette:'violet,indigo,blue,green,yellow,orange,red'},//NMVOC 
+    {min:0, max:15.0, palette:'violet,indigo,blue,green,yellow,orange,red'}//PRECIPITATION
+];
+
+
+
+var composite1 = collection1.mean().visualize(vis[0]);
+var composite2 = collection2.mean().visualize(vis[1]);
+var composite3 = collection3.mean().visualize(vis[2]);
+var composite4 = collection4.mean().visualize(vis[3]);
+var composite5 = collection5.mean().visualize(vis[4]);
+var composite6 = collection6.mean().visualize(vis[5]);
+var composite7 = collection7.mean().visualize(vis[6]);
+ 
+var compositeLayer1 = ui.Map.Layer(composite1).setName('SO2 Composite');
+var compositeLayer2 = ui.Map.Layer(composite2).setName('CO Composite');
+var compositeLayer3 = ui.Map.Layer(composite3).setName('O3 Composite');
+var compositeLayer4 = ui.Map.Layer(composite4).setName('NO2 Composite');
+var compositeLayer5 = ui.Map.Layer(composite5).setName('Aerosol Composite');
+var compositeLayer6 = ui.Map.Layer(composite6).setName('NMVOC Composite');
+var compositeLayer7 = ui.Map.Layer(composite7).setName('Precipitation Composite');
+
+// Initialize with a test point.
+var initialPoint = ee.Geometry.Point(78.0322,30.3165);
+
+// Create the main map and set the SST layer.
+var mapPanel = ui.Map();
+var layers = mapPanel.layers();
+layers.add(compositeLayer1, vis[0],'2022 Composite of SO2');
+layers.add(compositeLayer2, vis[1],'2022 Composite of CO');
+layers.add(compositeLayer3, vis[2],'2022 Composite of O3');
+layers.add(compositeLayer4, vis[3],'2022 Composite of NO2');
+layers.add(compositeLayer5, vis[4],'2022 Composite of Aerosol');
+layers.add(compositeLayer6, vis[5],'2022 Composite of NMVOC');
+layers.add(compositeLayer7, vis[6],'2022 Composite of Precipitation');
+
+mapPanel.centerObject(initialPoint, 8);
+/*
+ * Panel setup
+ */
+
+// Create a panel to hold title, intro text, chart and legend components.
+var generalContainer = ui.Panel({layout: ui.Panel.Layout.flow('horizontal')});
+generalContainer.style().set({width: '60%','position':'top-left'});
+
+var inspectorPanel = ui.Panel();
+inspectorPanel.style().set({width: '40%'});
+
+var rightPanel = ui.Panel();
+rightPanel.style().set({width: '40%'});
+
+var inspector = ui.Panel({
+  layout: ui.Panel.Layout.flow('vertical')
+});
+inspector.style().set({width: '20%'});
+Map.clear();
+ui.root.add(generalContainer);
+generalContainer.add(inspectorPanel);
+generalContainer.add(rightPanel);
+generalContainer.add(inspector);
+
+// Create an intro panel with labels.
+var intro = ui.Panel([
+  ui.Label({
+    value: 'Air Pollution and Precipitation - Time Series Inspector',
+    style: {'fontSize': '18px','text-align':'center','fontWeight': 'bold','color':'#145A32'}
+  }),
+  ui.Label({
+    value:'Click a location to see its time series of Air Pollutants and Precipitation.',
+    style: {'fontSize': '18px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
+  })
+]);
+inspectorPanel.add(intro);
+
+// Create panels to hold lon/lat values.
+var lon = ui.Label();
+var lat = ui.Label();
+inspectorPanel.add(ui.Panel([lon, lat], ui.Panel.Layout.flow('horizontal')));
+
+// Add placeholders for the chart and legend.
+inspectorPanel.add(ui.Label('[Chart]'));
+
+/*
+ * Chart setup
+ */
+
+// Generates a new time series chart of SST for the given coordinates.
+var generateChart1 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+    // Add a dot for the point clicked on.
+    var point = ee.Geometry.Point(coords.lon, coords.lat);
+    // Add the dot as the second layer, so it shows up on top of the composite.
+   
+
+  // Make a chart from the time series.
+  var SO2Chart = ui.Chart.image.series(collection1, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  SO2Chart.setOptions({
+    title: 'Concentration of SO2: time series',
+    vAxis: {title: 'Concentration mol/m2'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(2, SO2Chart);
+};
+var generateChart2 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+ // var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
+  // Add the dot as the second layer, so it shows up on top of the composite.
+ // mapPanel.layers().set(1, dot);
+
+  // Make a chart from the time series.
+  var COChart = ui.Chart.image.series(collection2, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  COChart.setOptions({
+    title: 'Concentration of CO: time series',
+    vAxis: {title: 'Concentration mol/m2'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(3, COChart);
+};
+var generateChart3 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
+  // Add the dot as the second layer, so it shows up on top of the composite.
+//  mapPanel.layers().set(1, dot);
+
+  // Make a chart from the time series.
+  var O3Chart = ui.Chart.image.series(collection3, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  O3Chart.setOptions({
+    title: 'Concentration of Troposperic Ozone: time series',
+    vAxis: {title: 'Concentration mol/m2 '},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(4, O3Chart);
+};
+var generateChart4 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
+  // Add the dot as the second layer, so it shows up on top of the composite.
+  //mapPanel.layers().set(1, dot);
+
+  // Make a chart from the time series.
+  var NO2Chart = ui.Chart.image.series(collection4, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  NO2Chart.setOptions({
+    title: 'Concentration of NO2: time series',
+    vAxis: {title: 'Concentration mol/m2'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(5, NO2Chart);
+};
+var generateChart5 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  //var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
+  // Add the dot as the second layer, so it shows up on top of the composite.
+  //mapPanel.layers().set(1, dot);
+
+  // Make a chart from the time series.
+  var AerosolChart = ui.Chart.image.series(collection5, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  AerosolChart.setOptions({
+    title: 'Aerosol Index: time series',
+    vAxis: {title: 'Aerosol Index'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(6, AerosolChart);
+};
+var generateChart6 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  
+  // Make a chart from the time series.
+  var NMVOCChart = ui.Chart.image.series(collection6, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  NMVOCChart.setOptions({
+    title: 'Concentration of NMVOC: time series',
+    vAxis: {title: 'Concentration mol/m2'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(7, NMVOCChart);
+};
+var generateChart7 = function (coords) {
+  // Update the lon/lat panel with values from the click event.
+  lon.setValue('lon: ' + coords.lon.toFixed(2));
+  lat.setValue('lat: ' + coords.lat.toFixed(2));
+
+  // Add a dot for the point clicked on.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  var dot = ui.Map.Layer(point, {color: '000000'}, 'clicked location');
+  // Add the dot as the second layer, so it shows up on top of the composite.
+  mapPanel.layers().set(7, dot);
+
+  // Make a chart from the time series.
+  var PrecipitationChart = ui.Chart.image.series(collection7, point, ee.Reducer.mean(), 500);
+
+  // Customize the chart.
+  PrecipitationChart.setOptions({
+    title: 'Precipitation Rate : time series',
+    vAxis: {title: 'Precipitation Rate mm/hr'},
+    hAxis: {title: 'Date', format: 'MM-yy', gridlines: {count: 15}},
+    series: {
+      0: {
+        color: 'blue',
+        lineWidth: 0,
+        pointsVisible: true,
+        pointSize: 2,
+      },
+    },
+    legend: {position: 'right'},
+  });
+  // Add the chart at a fixed position, so that new charts overwrite older ones.
+  inspectorPanel.widgets().set(8, PrecipitationChart);
+};
+
+
+/*
+ * Legend setup
+ */
+
+// Creates a color bar thumbnail image for use in legend from the given color
+// palette.
+function makeColorBarParams(palette) {
+  return {
+    bbox: [0, 0, 1, 0.1],
+    dimensions: '100x10',
+    format: 'png',
+    min: 0,
+    max: 1,
+    palette: palette,
+  };
+}
+
+// Create the color bar for the legend.
+var colorBar1 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[0].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar2 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[1].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar3 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[2].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar4 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[3].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar5 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[4].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar6 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[5].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+var colorBar7 = ui.Thumbnail({
+  image: ee.Image.pixelLonLat().select(0),
+  params: makeColorBarParams(vis[6].palette),
+  style: {stretch: 'horizontal', margin: '0px 8px', maxHeight: '24px'},
+});
+
+
+
+// Create a panel with three numbers for the legend.
+//Legends Making for Dataset
+var legendLabels1 = ui.Panel({
+  widgets: [
+    ui.Label(vis[0].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[0].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[0].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels2 = ui.Panel({
+  widgets: [
+    ui.Label(vis[1].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[1].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[1].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels3 = ui.Panel({
+  widgets: [
+    ui.Label(vis[2].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[2].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[2].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels4 = ui.Panel({
+  widgets: [
+    ui.Label(vis[3].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[3].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[3].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels5 = ui.Panel({
+  widgets: [
+    ui.Label(vis[4].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[4].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[4].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels6 = ui.Panel({
+  widgets: [
+    ui.Label(vis[5].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[5].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[5].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+var legendLabels7 = ui.Panel({
+  widgets: [
+    ui.Label(vis[6].min, {margin: '4px 8px'}),
+    ui.Label(
+        (vis[6].max / 2),
+        {margin: '4px 8px', textAlign: 'center', stretch: 'horizontal'}),
+    ui.Label(vis[6].max, {margin: '4px 8px'})
+  ],
+  layout: ui.Panel.Layout.flow('horizontal')
+});
+
+//LegendTitlesAddingAnd Design
+var legendTitle1 = ui.Label({
+  value: 'Map Legend: Concentration Of SO2',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle2 = ui.Label({
+  value: 'Map Legend: Concentration Of CO',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle3 = ui.Label({
+  value: 'Map Legend: Concentration Of Troposphere O3',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle4 = ui.Label({
+  value: 'Map Legend: Concentration Of NO2',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle5 = ui.Label({
+  value: 'Map Legend: Concentration Of Aerosol',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle6 = ui.Label({
+  value: 'Map Legend: Concentration Of NMVOC',
+  style: {fontWeight: 'bold'}
+});
+var legendTitle7 = ui.Label({
+  value: 'Map Legend: Precipitation Level',
+  style: {fontWeight: 'bold'}
+});
+
+var legendPanel1 = ui.Panel([legendTitle1, colorBar1, legendLabels1]);
+var legendPanel2 = ui.Panel([legendTitle2, colorBar2, legendLabels2]);
+var legendPanel3 = ui.Panel([legendTitle3, colorBar3, legendLabels3]);
+var legendPanel4 = ui.Panel([legendTitle4, colorBar4, legendLabels4]);
+var legendPanel5 = ui.Panel([legendTitle5, colorBar5, legendLabels5]);
+var legendPanel6 = ui.Panel([legendTitle6, colorBar6, legendLabels6]);
+var legendPanel7 = ui.Panel([legendTitle7, colorBar7, legendLabels7]);
+
+// Register a callback on the default map to be invoked when the map is clicked.
+mapPanel.onClick(generateChart1);
+mapPanel.onClick(generateChart2);
+mapPanel.onClick(generateChart3);
+mapPanel.onClick(generateChart4);
+mapPanel.onClick(generateChart5);
+mapPanel.onClick(generateChart6);
+mapPanel.onClick(generateChart7);
+
+var descr= ui.Label({
+  value:'Different Types Of Air Pollutants',
+  style:{'fontSize': '18px','text-align':'center','fontWeight': 'bold','color':'#145A32'},
+})
+var descr1= ui.Label({
+  value:'___________________________________________________',
+  style:{'fontSize': '18px','fontWeight': 'bold','color':'#145A32'},
+})
+var descr2= ui.Label({
+  value:'_________________________',
+  style:{'fontSize': '18px','fontWeight': 'bold','color':'#145A32'},
+})
+var des1= ui.Label({
+  value:'Different layers are formed showing the concentration of various Air Pollutants and Precipitation.'+'The data visualization is achieved using TROPOMI of Sentinel 5P and GPM product',
+  style:{'fontSize': '13px','fontWeight': 'bold','color':'#85929E'},
+})
+rightPanel.add(descr)
+rightPanel.add(descr1)
+rightPanel.add(des1)
+
+rightPanel.add(legendPanel1);
+rightPanel.add(legendPanel2);
+rightPanel.add(legendPanel3);
+rightPanel.add(legendPanel4);
+rightPanel.add(legendPanel5);
+rightPanel.add(legendPanel6);
+rightPanel.add(legendPanel7);
+
+
+/*
+ * Map setup
+ */
+// Configure the map.
+mapPanel.style().set('cursor', 'crosshair');
+
+
+
+// Add a label to the panel.
+inspector.add(ui.Label('Click the location to get the information'));
+
+// Add the panel to the default map
+
+// Set the default map's cursor to a "crosshair".
+mapPanel.style().set('cursor', 'crosshair');
+
+// Register a callback on the map to be invoked when the map is clicked.
+mapPanel.onClick(function(coords) {
+  // Clear the panel and show a loading message.
+  inspector.clear();
+  inspector.style().set('shown', true);
+  inspector.add(ui.Label('Loading...', {color: 'gray'}));
+
+  // Compute the mean NDVI; a potentially long-running server operation.
+  var point = ee.Geometry.Point(coords.lon, coords.lat);
+  var temporalMean1 = collection1.reduce(ee.Reducer.mean());
+  var temporalMean2 = collection2.reduce(ee.Reducer.mean());
+  var temporalMean3 = collection3.reduce(ee.Reducer.mean());
+  var temporalMean4 = collection4.reduce(ee.Reducer.mean());
+  var temporalMean5 = collection5.reduce(ee.Reducer.mean());
+  var temporalMean6 = collection6.reduce(ee.Reducer.mean());
+  var temporalMean7 = collection7.reduce(ee.Reducer.mean());
+  var sampledPoint1 = temporalMean1.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint2 = temporalMean2.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint3 = temporalMean3.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint4 = temporalMean4.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint5 = temporalMean5.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint6 = temporalMean6.reduceRegion(ee.Reducer.last(), point, 30);
+  var sampledPoint7 = temporalMean7.reduceRegion(ee.Reducer.last(), point, 30);
+  var computedValue1 = sampledPoint1.get('SO2_column_number_density_mean');
+  var computedValue2 = sampledPoint2.get('CO_column_number_density_mean');
+  var computedValue3 = sampledPoint3.get('O3_column_number_density_mean');
+  var computedValue4 = sampledPoint4.get('tropospheric_NO2_column_number_density_mean');
+  var computedValue5 = sampledPoint5.get('absorbing_aerosol_index_mean');
+  var computedValue6 = sampledPoint6.get('tropospheric_HCHO_column_number_density_mean');
+  var computedValue7 = sampledPoint7.get('precipitationCal_mean');
+
+  // Request the value from the server and use the results in a function.
+  computedValue1.evaluate(function(result) {
+    inspector.clear();
+    
+    var ppb = result*244/0.00001/10000;
+    // Add a label with the results from the server.
+    inspector.add(inspectorHead);
+    inspector.add(descr2);
+    inspector.add(ui.Label({
+      value: 'SO2 (ppb): ' + ppb.toFixed(5),//.multiply(244).divide(0.00001),
+      
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue2.evaluate(function(result) {
+    var ppb = result*244/0.00001/10000;
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      value: 'CO(ppb): ' + ppb.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue3.evaluate(function(result) {
+    
+    var ppb = result*244/0.00001/10000;
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      value: 'O3(ppb): ' + ppb.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue4.evaluate(function(result){
+    
+    var ppb = result*244/0.00001/10000;
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      
+      value: 'NO2(ppb): ' + ppb.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue5.evaluate(function(result) {
+    
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      value: 'Aerosol Index: ' + result.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue6.evaluate(function(result) {
+    
+    var ppb = result*244/0.00001/10000;
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      value: 'HCHO(ppb): ' + ppb.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+  computedValue7.evaluate(function(result) {
+    
+    // Add a label with the results from the server.
+    inspector.add(ui.Label({
+      value: 'Precipitation Rate(mm/hr) ' + result.toFixed(5),//.multiply(244).divide(0.00001),
+      style: {'fontSize': '12px','fontWeight': 'bold','color':'#145A32',stretch: 'horizontal'}
+     
+    }));
+  });
+    // Request the value from the server and use the results in a function.
+
+});
+/*
+ * Initialize the app
+ */
+var inspectorHead = ui.Label({
+  value: 'Vales of Pollutants and Precipitation',
+  style: {'fontSize': '14px','fontWeight': 'bold','color':'#145A32'}});
+
+// Replace the root with a SplitPanel that contains the inspector and map.
+ui.root.clear();
+ui.root.add(ui.SplitPanel(generalContainer, mapPanel));
+
+generateChart1({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart2({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart3({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart4({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart5({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart6({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+generateChart7({
+  lon: initialPoint.coordinates().get(0).getInfo(),
+  lat: initialPoint.coordinates().get(1).getInfo()
+});
+
+Map.setOptions('Satellite')
+
+
+
+
+
+
+
