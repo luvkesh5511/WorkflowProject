@@ -36,7 +36,7 @@ var vis = [
     {min:0, max:0.0002, palette:'violet,indigo,blue,green,yellow,orange,red'},//NO2
     {min:0, max:2.0, palette:'violet,indigo,blue,green,yellow,orange,red'},//AEROSOL
     {min:0, max:0.0003, palette:'violet,indigo,blue,green,yellow,orange,red'},//NMVOC 
-    {min:0, max:15.0, palette:'violet,indigo,blue,green,yellow,orange,red'}//PRECIPITATION
+    {min:0, max:3.5, palette:'violet,indigo,blue,green,yellow,orange,red'}//PRECIPITATION
 ];
 
 
@@ -671,7 +671,7 @@ mapPanel.onClick(function(coords) {
  * Initialize the app
  */
 var inspectorHead = ui.Label({
-  value: 'Valeus of Pollutants and Precipitation',
+  value: 'Values of Pollutants and Precipitation',
   style: {'fontSize': '14px','fontWeight': 'bold','color':'#145A32'}});
 
 // Replace the root with a SplitPanel that contains the inspector and map.
